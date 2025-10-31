@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { trpc } from '@/lib/trpc-client';
+import { useState } from "react";
+import { trpc } from "@/lib/trpc-client";
 
 export function BlogExample() {
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [categoryName, setCategoryName] = useState('');
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [categoryName, setCategoryName] = useState("");
 
   // tRPC queries with automatic type inference
   const { data: posts, refetch: refetchPosts } = trpc.posts.getAll.useQuery({
@@ -14,21 +14,22 @@ export function BlogExample() {
     limit: 10,
   });
 
-  const { data: categories, refetch: refetchCategories } = trpc.categories.getAll.useQuery();
+  const { data: categories, refetch: refetchCategories } =
+    trpc.categories.getAll.useQuery();
 
   // tRPC mutations with automatic type inference
   const createPost = trpc.posts.create.useMutation({
     onSuccess: () => {
       refetchPosts();
-      setTitle('');
-      setContent('');
+      setTitle("");
+      setContent("");
     },
   });
 
   const createCategory = trpc.categories.create.useMutation({
     onSuccess: () => {
       refetchCategories();
-      setCategoryName('');
+      setCategoryName("");
     },
   });
 
@@ -78,7 +79,7 @@ export function BlogExample() {
             disabled={createCategory.isPending}
             className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50"
           >
-            {createCategory.isPending ? 'Creating...' : 'Create Category'}
+            {createCategory.isPending ? "Creating..." : "Create Category"}
           </button>
         </div>
       </div>
@@ -106,7 +107,7 @@ export function BlogExample() {
             disabled={createPost.isPending}
             className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
           >
-            {createPost.isPending ? 'Creating...' : 'Create Post'}
+            {createPost.isPending ? "Creating..." : "Create Post"}
           </button>
         </div>
       </div>
@@ -136,7 +137,9 @@ export function BlogExample() {
               <div className="flex justify-between items-start">
                 <div className="flex-1">
                   <h3 className="font-semibold text-lg">{post.title}</h3>
-                  <p className="text-sm text-gray-600 mb-2">Slug: {post.slug}</p>
+                  <p className="text-sm text-gray-600 mb-2">
+                    Slug: {post.slug}
+                  </p>
                   <p className="text-gray-700 mb-3">{post.content}</p>
                   <div className="flex flex-wrap gap-2">
                     {post.categories.map((category) => (
