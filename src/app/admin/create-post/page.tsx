@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { trpc } from '@/lib/trpc-client';
 import Link from 'next/link';
 import { ArrowLeft, Save, Eye } from 'lucide-react';
+import { AdminNav } from '@/components/admin-nav';
 
 export default function CreatePostPage() {
   const router = useRouter();
@@ -51,6 +52,7 @@ export default function CreatePostPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <AdminNav />
       {/* Header */}
       <div className="bg-white border-b">
         <div className="max-w-4xl mx-auto px-4 py-4">
