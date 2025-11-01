@@ -7,11 +7,13 @@ export default async function PostsPage() {
   const ctx = await createTRPCContext();
   const caller = appRouter.createCaller(ctx);
 
-  const posts = await caller.posts.getAll({
+  const postsData = await caller.posts.getAll({
     published: true,
     limit: 50,
     offset: 0,
   });
+
+  const posts = postsData.posts;
 
   return (
     <div className="min-h-screen bg-background">

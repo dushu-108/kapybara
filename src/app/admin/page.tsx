@@ -10,7 +10,7 @@ export default function AdminPage() {
   const [filter, setFilter] = useState<'all' | 'published' | 'draft'>('all');
 
   // Fetch all posts
-  const { data: allPosts, refetch: refetchPosts } = trpc.posts.getAll.useQuery({
+  const { data: allPostsData, refetch: refetchPosts } = trpc.posts.getAll.useQuery({
     limit: 100,
     offset: 0,
   });
@@ -51,15 +51,18 @@ export default function AdminPage() {
     }
   };
 
+  // Extract posts from the new API response structure
+  const allPosts = allPostsData?.posts || [];
+
   // Filter posts based on selected filter
-  const filteredPosts = allPosts?.filter(post => {
+  const filteredPosts = allPosts.filter(post => {
     if (filter === 'published') return post.published;
     if (filter === 'draft') return !post.published;
     return true; // 'all'
-  }) || [];
+  });
 
-  const publishedCount = allPosts?.filter(post => post.published).length || 0;
-  const draftCount = allPosts?.filter(post => !post.published).length || 0;
+  const publishedCount = allPosts.filter(post => post.published).length;
+  const draftCount = allPosts.filter(post => !post.published).length;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -92,7 +95,7 @@ export default function AdminPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Posts</p>
-                <p className="text-3xl font-bold text-gray-900">{allPosts?.length || 0}</p>
+                <p className="text-3xl font-bold text-gray-900">{allPosts.length}</p>
               </div>
               <div className="p-3 bg-blue-100 rounded-full">
                 <Edit className="w-6 h-6 text-blue-600" />
@@ -130,7 +133,7 @@ export default function AdminPage() {
           <div className="border-b border-gray-200">
             <nav className="flex space-x-8 px-6">
               {[
-                { key: 'all', label: 'All Posts', count: allPosts?.length || 0 },
+                { key: 'all', label: 'All Posts', count: allPosts.length },
                 { key: 'published', label: 'Published', count: publishedCount },
                 { key: 'draft', label: 'Drafts', count: draftCount },
               ].map((tab) => (

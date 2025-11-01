@@ -5,18 +5,23 @@ import { trpc } from "@/lib/trpc-client";
 import { Edit } from "lucide-react";
 import Link from "next/link";
 import { DeletePostButton } from "@/components/delete-post-button";
+import { Pagination } from "@/components/ui/pagination";
+import { useState } from "react";
 
 export const ColorfulBentoGrid = () => {
-  const { data: realPosts, isLoading: postsLoading, refetch: refetchPosts } = trpc.posts.getAll.useQuery({
+  const [currentPage, setCurrentPage] = useState(1);
+  const postsPerPage = 12;
+
+  const { data: postsData, isLoading: postsLoading, refetch: refetchPosts } = trpc.posts.getAll.useQuery({
     published: true,
-    limit: 50,
-    offset: 0,
+    limit: postsPerPage,
+    offset: (currentPage - 1) * postsPerPage,
   }, {
     retry: false,
     refetchOnWindowFocus: false,
   });
 
-  const { data: draftPosts } = trpc.posts.getAll.useQuery({
+  const { data: draftPostsData } = trpc.posts.getAll.useQuery({
     published: false,
     limit: 10,
     offset: 0,
@@ -25,11 +30,22 @@ export const ColorfulBentoGrid = () => {
     refetchOnWindowFocus: false,
   });
 
-  const posts = (realPosts || []).slice(0, 6);
+  const posts = postsData?.posts || [];
+  const totalCount = postsData?.totalCount || 0;
+  const totalPages = Math.ceil(totalCount / postsPerPage);
+  const draftPosts = draftPostsData?.posts || [];
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const featuredPosts = posts.slice(0, 3);
+  const allPostsForGrid = posts;
 
   if (postsLoading && !posts.length) {
     return (
-      <section className="bg-white rounded-3xl p-4 my-16 max-w-6xl mx-auto">
+      <section className="bg-white rounded-3xl p-8 w-full">
         <div className="flex items-center justify-center py-20">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         </div>
@@ -41,7 +57,7 @@ export const ColorfulBentoGrid = () => {
     const hasDrafts = draftPosts && draftPosts.length > 0;
     
     return (
-      <section className="bg-white rounded-3xl p-4 my-16 max-w-6xl mx-auto">
+      <section className="bg-white rounded-3xl p-8 w-full">
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <div className="text-6xl mb-4">📝</div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">No Published Posts Yet</h2>
@@ -117,30 +133,32 @@ export const ColorfulBentoGrid = () => {
     return authors[index % authors.length];
   };
 
-  const recentPosts = posts.slice(0, 3);
-  const allPostsForGrid = posts || [];
-
   return (
-    <section className="bg-white rounded-3xl p-4 my-16 max-w-6xl mx-auto">
-      <div className="p-8">
-        <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">
-            Latest Blog Posts
-          </h2>
-          <p className="text-gray-600 text-lg">
-            Discover insights, tutorials, and stories from our community
+    <section className="bg-white rounded-3xl p-8 w-full">
+      <div className="text-center mb-12">
+        <h2 className="text-4xl font-bold text-gray-900 mb-4">
+          Latest Blog Posts
+        </h2>
+        <p className="text-gray-600 text-lg">
+          Discover insights, tutorials, and stories from our community
+        </p>
+        {totalCount > 0 && (
+          <p className="text-sm text-gray-500 mt-2">
+            Showing {((currentPage - 1) * postsPerPage) + 1}-{Math.min(currentPage * postsPerPage, totalCount)} of {totalCount} posts
           </p>
-        </div>
+        )}
+      </div>
 
+      {featuredPosts.length > 0 && currentPage === 1 && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
-          {recentPosts[0] && (
+          {featuredPosts[0] && (
             <div className="lg:col-span-2 relative group">
               <div className="absolute top-6 right-6 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-2 z-10">
                 <button
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    window.location.href = `/admin/edit-post/${recentPosts[0].slug}`;
+                    window.location.href = `/admin/edit-post/${featuredPosts[0].slug}`;
                   }}
                   className="p-2 bg-white/90 hover:bg-white text-gray-700 hover:text-blue-600 rounded-lg shadow-lg transition-colors"
                   title="Edit post"
@@ -148,15 +166,15 @@ export const ColorfulBentoGrid = () => {
                   <Edit size={16} />
                 </button>
                 <DeletePostButton
-                  postId={recentPosts[0].id}
-                  postTitle={recentPosts[0].title}
+                  postId={featuredPosts[0].id}
+                  postTitle={featuredPosts[0].title}
                   variant="icon"
                   onSuccess={refetchPosts}
                 />
               </div>
               
               <Link
-                href={`/posts/${recentPosts[0].slug}`}
+                href={`/posts/${featuredPosts[0].slug}`}
                 className="group block"
               >
                 <div
@@ -173,7 +191,7 @@ export const ColorfulBentoGrid = () => {
                       <span>{getAuthorName(0)}</span>
                       <span>•</span>
                       <span>
-                        {new Date(recentPosts[0].createdAt).toLocaleDateString(
+                        {new Date(featuredPosts[0].createdAt).toLocaleDateString(
                           "en-US",
                           {
                             day: "numeric",
@@ -184,12 +202,12 @@ export const ColorfulBentoGrid = () => {
                       </span>
                     </div>
                     <h3 className="text-2xl font-bold mb-3 line-clamp-2">
-                      {recentPosts[0].title}
+                      {featuredPosts[0].title}
                     </h3>
                     <p className="text-white/90 line-clamp-2">
-                      {recentPosts[0].content.length > 120
-                        ? recentPosts[0].content.substring(0, 120) + "..."
-                        : recentPosts[0].content}
+                      {featuredPosts[0].content.length > 120
+                        ? featuredPosts[0].content.substring(0, 120) + "..."
+                        : featuredPosts[0].content}
                     </p>
                   </div>
                 </div>
@@ -198,7 +216,7 @@ export const ColorfulBentoGrid = () => {
           )}
 
           <div className="space-y-6">
-            {recentPosts.slice(1, 3).map(
+            {featuredPosts.slice(1, 3).map(
               (
                 post: {
                   id: any;
@@ -260,12 +278,14 @@ export const ColorfulBentoGrid = () => {
             )}
           </div>
         </div>
+      )}
 
-        <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">
-          All Articles
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {allPostsForGrid.map((post: any, index: number) => (
+      <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">
+        {currentPage === 1 && featuredPosts.length > 0 ? "All Articles" : "Blog Posts"}
+      </h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 mb-12">
+
+        {allPostsForGrid.map((post: any, index: number) => (
             <article key={post.id} className="group relative">
               <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-2 z-10">
                 <button
@@ -337,8 +357,17 @@ export const ColorfulBentoGrid = () => {
               </Link>
             </article>
           ))}
-        </div>
       </div>
+
+      {totalPages > 1 && (
+        <div className="mt-12">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
+        </div>
+      )}
     </section>
   );
 };

@@ -96,6 +96,20 @@ export const postsRouter = router({
             eq(postCategories.categoryId, categoryId),
           ];
 
+          // Get total count for pagination
+          const totalCountResult = await ctx.db
+            .select({ count: sql<number>`count(distinct ${posts.id})` })
+            .from(posts)
+            .innerJoin(postCategories, eq(posts.id, postCategories.postId))
+            .innerJoin(categories, eq(postCategories.categoryId, categories.id))
+            .where(
+              categoryConditions.length > 0
+                ? and(...categoryConditions)
+                : undefined
+            );
+
+          const totalCount = totalCountResult[0]?.count || 0;
+
           const result = await ctx.db
             .select({
               id: posts.id,
@@ -142,8 +156,22 @@ export const postsRouter = router({
             });
           });
 
-          return Array.from(postsMap.values());
+          return {
+            posts: Array.from(postsMap.values()),
+            totalCount,
+            hasMore: offset + limit < totalCount,
+          };
         } else {
+          // Get total count for pagination
+          const totalCountResult = await ctx.db
+            .select({ count: sql<number>`count(*)` })
+            .from(posts)
+            .where(
+              whereConditions.length > 0 ? and(...whereConditions) : undefined
+            );
+
+          const totalCount = totalCountResult[0]?.count || 0;
+
           const result = await ctx.db
             .select({
               id: posts.id,
@@ -163,7 +191,11 @@ export const postsRouter = router({
             .offset(offset);
 
           if (result.length === 0) {
-            return [];
+            return {
+              posts: [],
+              totalCount,
+              hasMore: false,
+            };
           }
 
           const postIds = result.map((p) => p.id);
@@ -195,7 +227,11 @@ export const postsRouter = router({
             categories: categoriesMap.get(post.id) || [],
           }));
 
-          return postsWithCategories;
+          return {
+            posts: postsWithCategories,
+            totalCount,
+            hasMore: offset + limit < totalCount,
+          };
         }
       } catch (error) {
         throw new TRPCError({
