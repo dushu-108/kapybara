@@ -1,11 +1,10 @@
-import { Component } from "@/components/colorful-bento-grid";
+import { ColorfulBentoGrid } from "@/components/colorful-bento-grid";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 
 export default function Home() {
   return (
     <main className="bg-[#F0F0F0] w-screen min-h-screen">
-      {/* Header with Create Post Button */}
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="flex justify-between items-center mb-8">
           <div>
@@ -24,8 +23,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Blog Grid Component */}
-      <Component />
+      <ColorfulBentoGrid />
     </main>
   );
 }

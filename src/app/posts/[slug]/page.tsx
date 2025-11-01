@@ -5,6 +5,7 @@ import { createTRPCContext } from '@/lib/trpc';
 import { appRouter } from '@/server/routers/_app';
 import { DeletePostButton } from '@/components/delete-post-button';
 
+
 interface PostPageProps {
   params: Promise<{
     slug: string;
@@ -13,15 +14,22 @@ interface PostPageProps {
 
 export default async function PostPage({ params }: PostPageProps) {
   const { slug } = await params;
-  const ctx = await createTRPCContext();
-  const caller = appRouter.createCaller(ctx);
+  
+  // Fetch post from database
+  let post = null;
+  let isStaticPost = false;
 
   try {
-    const post = await caller.posts.getBySlug({ slug });
+    const ctx = await createTRPCContext();
+    const caller = appRouter.createCaller(ctx);
+    post = await caller.posts.getBySlug({ slug });
+  } catch (error) {
+    console.error('Error fetching post from database:', error);
+  }
 
-    if (!post) {
-      notFound();
-    }
+  if (!post) {
+    notFound();
+  }
 
     return (
       <div className="min-h-screen bg-gray-50">
@@ -193,42 +201,39 @@ export default async function PostPage({ params }: PostPageProps) {
         </section>
       </div>
     );
-  } catch (error) {
-    console.error('Error fetching post:', error);
-    notFound();
-  }
 }
 
 // Generate metadata for SEO
 export async function generateMetadata({ params }: PostPageProps) {
   const { slug } = await params;
-  const ctx = await createTRPCContext();
-  const caller = appRouter.createCaller(ctx);
-
+  
+  // Fetch post from database
+  let post = null;
+  
   try {
-    const post = await caller.posts.getBySlug({ slug });
-    
-    if (!post) {
-      return {
-        title: 'Post Not Found',
-      };
-    }
-
-    return {
-      title: post.title,
-      description: post.content.substring(0, 160) + '...',
-      openGraph: {
-        title: post.title,
-        description: post.content.substring(0, 160) + '...',
-        type: 'article',
-        publishedTime: post.createdAt.toISOString(),
-        modifiedTime: post.updatedAt.toISOString(),
-        tags: post.categories.map(cat => cat.name),
-      },
-    };
+    const ctx = await createTRPCContext();
+    const caller = appRouter.createCaller(ctx);
+    post = await caller.posts.getBySlug({ slug });
   } catch (error) {
+    console.error('Error fetching post for metadata:', error);
+  }
+  
+  if (!post) {
     return {
       title: 'Post Not Found',
     };
   }
+
+  return {
+    title: post.title,
+    description: post.content.substring(0, 160) + '...',
+    openGraph: {
+      title: post.title,
+      description: post.content.substring(0, 160) + '...',
+      type: 'article',
+      publishedTime: post.createdAt.toISOString(),
+      modifiedTime: post.updatedAt.toISOString(),
+      tags: post.categories.map(cat => cat.name),
+    },
+  };
 }

@@ -43,7 +43,7 @@ export const postCategories = pgTable(
   },
   (table) => [unique().on(table.postId, table.categoryId)]
 );
-// Relations
+
 export const postsRelations = relations(posts, ({ many }) => ({
   postCategories: many(postCategories),
 }));

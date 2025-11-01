@@ -1,5 +1,5 @@
-import { drizzle } from "drizzle-orm/neon-http";
-import { neon } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
 import { config } from "dotenv";
 import * as schema from "@/db/schema";
 
@@ -9,12 +9,17 @@ if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL is not set in environment variables");
 }
 
-const client = neon(process.env.DATABASE_URL, {
-  // Add connection options for better reliability
-  fetchConnectionCache: true,
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  max: 5,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 20000,
+  ssl: {
+    rejectUnauthorized: false
+  }
 });
 
-const db = drizzle(client, { 
+const db = drizzle(pool, { 
   schema,
   logger: process.env.NODE_ENV === 'development',
 });

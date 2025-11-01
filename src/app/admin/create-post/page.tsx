@@ -13,9 +13,11 @@ export default function CreatePostPage() {
   const [content, setContent] = useState('');
   const [published, setPublished] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<number[]>([]);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
 
   // Fetch categories for selection
-  const { data: categories } = trpc.categories.getAll.useQuery();
+  const { data: categories, refetch: refetchCategories } = trpc.categories.getAll.useQuery();
 
   // Create post mutation
   const createPost = trpc.posts.create.useMutation({
@@ -24,6 +26,19 @@ export default function CreatePostPage() {
     },
     onError: (error) => {
       alert('Error creating post: ' + error.message);
+    },
+  });
+
+  // Create category mutation
+  const createCategory = trpc.categories.create.useMutation({
+    onSuccess: (newCategory) => {
+      refetchCategories();
+      setSelectedCategories(prev => [...prev, newCategory.id]);
+      setNewCategoryName('');
+      setShowNewCategoryInput(false);
+    },
+    onError: (error) => {
+      alert('Error creating category: ' + error.message);
     },
   });
 
@@ -37,7 +52,7 @@ export default function CreatePostPage() {
     createPost.mutate({
       title: title.trim(),
       content: content.trim(),
-      published,
+      published: true, // Always publish when clicking "Save Post"
       categoryIds: selectedCategories,
     });
   };
@@ -48,6 +63,18 @@ export default function CreatePostPage() {
         ? prev.filter(id => id !== categoryId)
         : [...prev, categoryId]
     );
+  };
+
+  const handleCreateCategory = () => {
+    if (!newCategoryName.trim()) {
+      alert('Please enter a category name');
+      return;
+    }
+
+    createCategory.mutate({
+      name: newCategoryName.trim(),
+      description: `Category for ${newCategoryName.trim()}`,
+    });
   };
 
   return (
@@ -133,11 +160,61 @@ export default function CreatePostPage() {
           </div>
 
           {/* Categories */}
-          {categories && categories.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <label className="block text-sm font-medium text-gray-700">
                 Categories
               </label>
+              <button
+                type="button"
+                onClick={() => setShowNewCategoryInput(!showNewCategoryInput)}
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+              >
+                + Add New Category
+              </button>
+            </div>
+
+            {/* New Category Input */}
+            {showNewCategoryInput && (
+              <div className="mb-4 p-4 bg-gray-50 rounded-lg border">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    placeholder="Enter new category name..."
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleCreateCategory();
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleCreateCategory}
+                    disabled={createCategory.isPending || !newCategoryName.trim()}
+                    className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white font-medium rounded-lg transition-colors"
+                  >
+                    {createCategory.isPending ? 'Creating...' : 'Create'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowNewCategoryInput(false);
+                      setNewCategoryName('');
+                    }}
+                    className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 font-medium rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Existing Categories */}
+            {categories && categories.length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {categories.map((category) => (
                   <button
@@ -154,11 +231,16 @@ export default function CreatePostPage() {
                   </button>
                 ))}
               </div>
-              <p className="text-sm text-gray-500 mt-2">
-                Select categories for your post (optional)
+            ) : (
+              <p className="text-gray-500 text-sm italic">
+                No categories yet. Create your first category above.
               </p>
-            </div>
-          )}
+            )}
+            
+            <p className="text-sm text-gray-500 mt-2">
+              Select categories for your post (optional). You can create new categories on-the-fly.
+            </p>
+          </div>
 
           {/* Preview */}
           {(title || content) && (

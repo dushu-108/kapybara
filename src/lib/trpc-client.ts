@@ -8,19 +8,13 @@ export const trpcClient = trpc.createClient({
   links: [
     httpBatchLink({
       url: '/api/trpc',
-      // Add timeout and retry configuration
       fetch(url, options) {
         return fetch(url, {
           ...options,
-          // Increase timeout for slow database connections
-          signal: AbortSignal.timeout(30000), // 30 seconds
+          signal: AbortSignal.timeout(60000),
         });
       },
-      async headers() {
-        return {
-          // authorization: getAuthCookie(),
-        };
-      },
+      maxURLLength: 2083,
     }),
   ],
 });

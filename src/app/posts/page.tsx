@@ -56,7 +56,7 @@ export default async function PostsPage() {
                         <div className="flex items-center gap-2">
                           <Tag className="size-4" />
                           <div className="flex gap-2">
-                            {post.categories.slice(0, 2).map((category) => (
+                            {post.categories.slice(0, 2).map((category: any) => (
                               <span
                                 key={category.id}
                                 className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-full"

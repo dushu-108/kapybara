@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { eq, and, desc, asc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { router, validatedProcedure } from "@/lib/trpc";
 import { posts, categories, postCategories } from "@/db/schema";
 import {
@@ -13,18 +13,15 @@ import {
 } from "@/lib/schemas";
 
 export const postsRouter = router({
-  // Create a new post
   create: validatedProcedure
     .input(createPostSchema)
     .mutation(async ({ ctx, input }) => {
       const { title, content, published, categoryIds } = input;
 
-      // Generate unique slug
       let slug = generateSlug(title);
       let slugCounter = 0;
       let finalSlug = slug;
 
-      // Check if slug exists and make it unique
       while (true) {
         const existingPost = await ctx.db
           .select({ id: posts.id })
@@ -39,7 +36,6 @@ export const postsRouter = router({
       }
 
       try {
-        // Create the post
         const [newPost] = await ctx.db
           .insert(posts)
           .values({
@@ -51,13 +47,11 @@ export const postsRouter = router({
           })
           .returning();
 
-        // Assign categories if provided
         if (categoryIds && categoryIds.length > 0) {
-          // Verify categories exist
           const existingCategories = await ctx.db
             .select({ id: categories.id })
             .from(categories)
-            .where(sql`${categories.id} = ANY(${categoryIds})`);
+            .where(inArray(categories.id, categoryIds));
 
           if (existingCategories.length !== categoryIds.length) {
             throw new TRPCError({
@@ -66,7 +60,6 @@ export const postsRouter = router({
             });
           }
 
-          // Insert post-category relationships
           await ctx.db.insert(postCategories).values(
             categoryIds.map((categoryId) => ({
               postId: newPost.id,
@@ -85,32 +78,25 @@ export const postsRouter = router({
       }
     }),
 
-  // Get all posts with optional filtering
   getAll: validatedProcedure
     .input(getPostsSchema)
     .query(async ({ ctx, input }) => {
       const { published, categoryId, limit, offset } = input;
 
-      console.log('📊 Posts.getAll called with input:', input);
-
       try {
         let whereConditions = [];
 
-        // Filter by published status
         if (published !== undefined) {
           whereConditions.push(eq(posts.published, published));
         }
 
-        let result;
-
-        // Filter by category
         if (categoryId) {
           const categoryConditions = [
             ...whereConditions,
             eq(postCategories.categoryId, categoryId),
           ];
 
-          result = await ctx.db
+          const result = await ctx.db
             .select({
               id: posts.id,
               title: posts.title,
@@ -119,9 +105,13 @@ export const postsRouter = router({
               published: posts.published,
               createdAt: posts.createdAt,
               updatedAt: posts.updatedAt,
+              categoryId: categories.id,
+              categoryName: categories.name,
+              categorySlug: categories.slug,
             })
             .from(posts)
             .innerJoin(postCategories, eq(posts.id, postCategories.postId))
+            .innerJoin(categories, eq(postCategories.categoryId, categories.id))
             .where(
               categoryConditions.length > 0
                 ? and(...categoryConditions)
@@ -130,8 +120,31 @@ export const postsRouter = router({
             .orderBy(desc(posts.createdAt))
             .limit(limit)
             .offset(offset);
+
+          const postsMap = new Map();
+          result.forEach((row: any) => {
+            if (!postsMap.has(row.id)) {
+              postsMap.set(row.id, {
+                id: row.id,
+                title: row.title,
+                content: row.content,
+                slug: row.slug,
+                published: row.published,
+                createdAt: row.createdAt,
+                updatedAt: row.updatedAt,
+                categories: [],
+              });
+            }
+            postsMap.get(row.id).categories.push({
+              id: row.categoryId,
+              name: row.categoryName,
+              slug: row.categorySlug,
+            });
+          });
+
+          return Array.from(postsMap.values());
         } else {
-          result = await ctx.db
+          const result = await ctx.db
             .select({
               id: posts.id,
               title: posts.title,
@@ -148,35 +161,43 @@ export const postsRouter = router({
             .orderBy(desc(posts.createdAt))
             .limit(limit)
             .offset(offset);
+
+          if (result.length === 0) {
+            return [];
+          }
+
+          const postIds = result.map((p) => p.id);
+          const allCategories = await ctx.db
+            .select({
+              postId: postCategories.postId,
+              id: categories.id,
+              name: categories.name,
+              slug: categories.slug,
+            })
+            .from(categories)
+            .innerJoin(postCategories, eq(categories.id, postCategories.categoryId))
+            .where(inArray(postCategories.postId, postIds));
+
+          const categoriesMap = new Map<number, Array<{id: number, name: string, slug: string}>>();
+          allCategories.forEach((cat) => {
+            if (!categoriesMap.has(cat.postId)) {
+              categoriesMap.set(cat.postId, []);
+            }
+            categoriesMap.get(cat.postId)!.push({
+              id: cat.id,
+              name: cat.name,
+              slug: cat.slug,
+            });
+          });
+
+          const postsWithCategories = result.map((post) => ({
+            ...post,
+            categories: categoriesMap.get(post.id) || [],
+          }));
+
+          return postsWithCategories;
         }
-
-        // Get categories for each post
-        const postsWithCategories = await Promise.all(
-          result.map(async (post) => {
-            const postCats = await ctx.db
-              .select({
-                id: categories.id,
-                name: categories.name,
-                slug: categories.slug,
-              })
-              .from(categories)
-              .innerJoin(
-                postCategories,
-                eq(categories.id, postCategories.categoryId)
-              )
-              .where(eq(postCategories.postId, post.id));
-
-            return {
-              ...post,
-              categories: postCats,
-            };
-          })
-        );
-
-        console.log('✅ Posts.getAll successful, returning', postsWithCategories.length, 'posts');
-        return postsWithCategories;
       } catch (error) {
-        console.error('❌ Posts.getAll failed:', error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to fetch posts",
@@ -185,7 +206,6 @@ export const postsRouter = router({
       }
     }),
 
-  // Get a single post by ID
   getById: validatedProcedure
     .input(getPostSchema)
     .query(async ({ ctx, input }) => {
@@ -203,7 +223,6 @@ export const postsRouter = router({
           });
         }
 
-        // Get categories for this post
         const postCats = await ctx.db
           .select({
             id: categories.id,
@@ -232,7 +251,6 @@ export const postsRouter = router({
       }
     }),
 
-  // Get a single post by slug
   getBySlug: validatedProcedure
     .input(getPostBySlugSchema)
     .query(async ({ ctx, input }) => {
@@ -250,7 +268,6 @@ export const postsRouter = router({
           });
         }
 
-        // Get categories for this post
         const postCats = await ctx.db
           .select({
             id: categories.id,
@@ -279,14 +296,12 @@ export const postsRouter = router({
       }
     }),
 
-  // Update a post
   update: validatedProcedure
     .input(updatePostSchema)
     .mutation(async ({ ctx, input }) => {
       const { id, title, content, published, categoryIds } = input;
 
       try {
-        // Check if post exists
         const [existingPost] = await ctx.db
           .select()
           .from(posts)
@@ -300,12 +315,10 @@ export const postsRouter = router({
           });
         }
 
-        // Prepare update data
         const updateData: any = { updatedAt: new Date() };
 
         if (title !== undefined) {
           updateData.title = title;
-          // Generate new slug if title changed
           if (title !== existingPost.title) {
             let slug = generateSlug(title);
             let slugCounter = 0;
@@ -333,12 +346,12 @@ export const postsRouter = router({
         if (content !== undefined) updateData.content = content;
         if (published !== undefined) updateData.published = published;
 
-        // Update the post
         const [updatedPost] = await ctx.db
           .update(posts)
           .set(updateData)
           .where(eq(posts.id, id))
-          .returning()
+          .returning();
+
         if (categoryIds !== undefined) {
           await ctx.db
             .delete(postCategories)
@@ -348,7 +361,7 @@ export const postsRouter = router({
             const existingCategories = await ctx.db
               .select({ id: categories.id })
               .from(categories)
-              .where(sql`${categories.id} = ANY(${categoryIds})`);
+              .where(inArray(categories.id, categoryIds));
 
             if (existingCategories.length !== categoryIds.length) {
               throw new TRPCError({
@@ -377,6 +390,7 @@ export const postsRouter = router({
         });
       }
     }),
+
   delete: validatedProcedure
     .input(deletePostSchema)
     .mutation(async ({ ctx, input }) => {

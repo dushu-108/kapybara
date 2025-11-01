@@ -9,15 +9,21 @@ interface DeletePostButtonProps {
   postId: number;
   postTitle: string;
   variant?: 'default' | 'icon';
+  onSuccess?: () => void;
 }
 
-export function DeletePostButton({ postId, postTitle, variant = 'default' }: DeletePostButtonProps) {
+export function DeletePostButton({ postId, postTitle, variant = 'default', onSuccess }: DeletePostButtonProps) {
   const router = useRouter();
   const [showConfirm, setShowConfirm] = useState(false);
 
   const deletePost = trpc.posts.delete.useMutation({
     onSuccess: () => {
-      router.push('/');
+      setShowConfirm(false);
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        router.push('/');
+      }
     },
     onError: (error) => {
       alert('Error deleting post: ' + error.message);
@@ -35,14 +41,22 @@ export function DeletePostButton({ postId, postTitle, variant = 'default' }: Del
         <div className="text-sm text-gray-600 mb-2">Delete "{postTitle.length > 20 ? postTitle.substring(0, 20) + '...' : postTitle}"?</div>
         <div className="flex gap-2">
           <button
-            onClick={handleDelete}
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              handleDelete();
+            }}
             disabled={deletePost.isPending}
             className="px-3 py-1 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white text-sm rounded font-medium transition-colors"
           >
             {deletePost.isPending ? 'Deleting...' : 'Confirm'}
           </button>
           <button
-            onClick={() => setShowConfirm(false)}
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              setShowConfirm(false);
+            }}
             className="px-3 py-1 bg-gray-300 hover:bg-gray-400 text-gray-700 text-sm rounded font-medium transition-colors"
           >
             Cancel
