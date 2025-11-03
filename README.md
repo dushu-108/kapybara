@@ -65,7 +65,7 @@ npm install
 2. Copy your connection string
 3. Create `.env.local` file:
 ```bash
-DATABASE_URL="postgresql://neondb_owner:npg_CR3U7LKZGPOe@ep-winter-fire-a4selt05-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require"
+DATABASE_URL="postgresql://*****************@ep-winter-fire-a4selt05-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require"
 ```
 
 ### 3. Database Migration
