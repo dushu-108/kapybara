@@ -14,18 +14,15 @@ import {
 } from '@/lib/schemas';
 
 export const categoriesRouter = router({
-  // Create a new category
   create: validatedProcedure
     .input(createCategorySchema)
     .mutation(async ({ ctx, input }) => {
       const { name, description } = input;
       
-      // Generate unique slug
       let slug = generateSlug(name);
       let slugCounter = 0;
       let finalSlug = slug;
       
-      // Check if slug exists and make it unique
       while (true) {
         const existingCategory = await ctx.db
           .select({ id: categories.id })
@@ -60,17 +57,15 @@ export const categoriesRouter = router({
       }
     }),
 
-  // Get all categories
   getAll: validatedProcedure
     .query(async ({ ctx }) => {
-      console.log('📊 Categories.getAll called');
+      console.log('Categories.getAll called');
       try {
         const result = await ctx.db
           .select()
           .from(categories)
           .orderBy(desc(categories.createdAt));
 
-        // Get post count for each category
         const categoriesWithPostCount = await Promise.all(
           result.map(async (category) => {
             const [postCount] = await ctx.db
@@ -95,7 +90,6 @@ export const categoriesRouter = router({
       }
     }),
 
-  // Get a single category by ID with its posts
   getById: validatedProcedure
     .input(getCategorySchema)
     .query(async ({ ctx, input }) => {
@@ -113,7 +107,6 @@ export const categoriesRouter = router({
           });
         }
 
-        // Get posts in this category
         const categoryPosts = await ctx.db
           .select({
             id: posts.id,
@@ -141,7 +134,6 @@ export const categoriesRouter = router({
       }
     }),
 
-  // Get a single category by slug with its posts
   getBySlug: validatedProcedure
     .input(getCategoryBySlugSchema)
     .query(async ({ ctx, input }) => {
@@ -159,7 +151,6 @@ export const categoriesRouter = router({
           });
         }
 
-        // Get posts in this category
         const categoryPosts = await ctx.db
           .select({
             id: posts.id,
@@ -187,14 +178,12 @@ export const categoriesRouter = router({
       }
     }),
 
-  // Update a category
   update: validatedProcedure
     .input(updateCategorySchema)
     .mutation(async ({ ctx, input }) => {
       const { id, name, description } = input;
 
       try {
-        // Check if category exists
         const [existingCategory] = await ctx.db
           .select()
           .from(categories)
@@ -208,12 +197,10 @@ export const categoriesRouter = router({
           });
         }
 
-        // Prepare update data
         const updateData: any = { updatedAt: new Date() };
         
         if (name !== undefined) {
           updateData.name = name;
-          // Generate new slug if name changed
           if (name !== existingCategory.name) {
             let slug = generateSlug(name);
             let slugCounter = 0;
@@ -238,7 +225,6 @@ export const categoriesRouter = router({
         
         if (description !== undefined) updateData.description = description;
 
-        // Update the category
         const [updatedCategory] = await ctx.db
           .update(categories)
           .set(updateData)
@@ -257,12 +243,10 @@ export const categoriesRouter = router({
       }
     }),
 
-  // Delete a category
   delete: validatedProcedure
     .input(deleteCategorySchema)
     .mutation(async ({ ctx, input }) => {
       try {
-        // Check if category exists
         const [existingCategory] = await ctx.db
           .select({ id: categories.id })
           .from(categories)
@@ -276,7 +260,6 @@ export const categoriesRouter = router({
           });
         }
 
-        // Delete the category (post associations will be deleted automatically due to cascade)
         await ctx.db.delete(categories).where(eq(categories.id, input.id));
 
         return { success: true };
@@ -291,14 +274,12 @@ export const categoriesRouter = router({
       }
     }),
 
-  // Assign a category to a post
   assignToPost: validatedProcedure
     .input(assignCategoryToPostSchema)
     .mutation(async ({ ctx, input }) => {
       const { postId, categoryId } = input;
 
       try {
-        // Check if post exists
         const [post] = await ctx.db
           .select({ id: posts.id })
           .from(posts)
@@ -312,7 +293,6 @@ export const categoriesRouter = router({
           });
         }
 
-        // Check if category exists
         const [category] = await ctx.db
           .select({ id: categories.id })
           .from(categories)
@@ -326,7 +306,6 @@ export const categoriesRouter = router({
           });
         }
 
-        // Check if assignment already exists
         const [existing] = await ctx.db
           .select({ id: postCategories.id })
           .from(postCategories)
@@ -363,14 +342,12 @@ export const categoriesRouter = router({
       }
     }),
 
-  // Remove a category from a post
   removeFromPost: validatedProcedure
     .input(removeCategoryFromPostSchema)
     .mutation(async ({ ctx, input }) => {
       const { postId, categoryId } = input;
 
       try {
-        // Check if assignment exists
         const [existing] = await ctx.db
           .select({ id: postCategories.id })
           .from(postCategories)
@@ -389,7 +366,6 @@ export const categoriesRouter = router({
           });
         }
 
-        // Remove the assignment
         await ctx.db
           .delete(postCategories)
           .where(

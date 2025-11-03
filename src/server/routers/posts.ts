@@ -96,7 +96,6 @@ export const postsRouter = router({
             eq(postCategories.categoryId, categoryId),
           ];
 
-          // Get total count for pagination
           const totalCountResult = await ctx.db
             .select({ count: sql<number>`count(distinct ${posts.id})` })
             .from(posts)
@@ -162,7 +161,6 @@ export const postsRouter = router({
             hasMore: offset + limit < totalCount,
           };
         } else {
-          // Get total count for pagination
           const totalCountResult = await ctx.db
             .select({ count: sql<number>`count(*)` })
             .from(posts)
